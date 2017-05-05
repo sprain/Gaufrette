@@ -58,19 +58,40 @@ class AwsS3 implements Adapter,
      * @param array  $options Associative array of options used to buld the URL
      *                        - expires: The time at which the URL should expire
      *                        represented as a UNIX timestamp
-     *                        - Any options available in the Amazon S3 GetObject
-     *                        operation may be specified.
      *
      * @return string
      */
-    public function getUrl($key, array $options = [])
+    public function getUrl($key, array $options = array())
     {
+        if (isset($options['expires'])) {
+
+            return $this->getPreSignedUrl($key, $options['expires']);
+        }
+
         return $this->service->getObjectUrl(
             $this->bucket,
-            $this->computePath($key),
-            isset($options['expires']) ? $options['expires'] : null,
-            $options
+            $this->computePath($key)
         );
+    }
+
+    /**
+     * Gets the presigned URL of an Amazon S3 object.
+     *
+     * @param string $key      Object key
+     * @param mixed  $expires  The time at which the URL should expire
+     *                         (\DateTime, UNIX timestamp or relative time as string)
+     * @return string
+     */
+    public function getPreSignedUrl($key, $expires)
+    {
+        $command = $this->service->getCommand('GetObject', [
+            'Bucket' => $this->bucket,
+            'Key'    => $this->computePath($key)
+        ]);
+
+        $request = $this->service->createPresignedRequest($command, $expires);
+
+        return (string) $request->getUri();
     }
 
     /**
